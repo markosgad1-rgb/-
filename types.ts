@@ -28,6 +28,20 @@ export interface AttendanceRecord {
   location: AttendanceLocation | null;
   verifiedByBiometric: boolean;
   note?: string;
+  taskId?: string;
 }
 
-export type ViewState = 'attendance' | 'users' | 'reports' | 'profile';
+export interface TaskLocation {
+  latitude: number;
+  longitude: number;
+  radiusMeters: number;
+}
+
+export interface Task {
+  id: string;
+  name: string;
+  employeeIds: string[];
+  location: TaskLocation;
+}
+
+export type ViewState = 'attendance' | 'users' | 'reports' | 'tasks' | 'profile';

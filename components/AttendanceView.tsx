@@ -1,12 +1,13 @@
 import React, { useMemo, useState } from 'react';
-import { AttendanceRecord, User } from '../types';
+import { AttendanceRecord, Task, User } from '../types';
 import { verifyBiometric, BiometricError } from '../services/biometricService';
-import { getCurrentLocation, LocationError, formatLocation, mapsLinkFor } from '../services/locationService';
+import { getCurrentLocation, LocationError, formatLocation, mapsLinkFor, isWithinTaskRadius, distanceInMeters } from '../services/locationService';
 import { Fingerprint, MapPin, LogIn, LogOut, Loader2, CheckCircle2, Navigation, Clock } from 'lucide-react';
 
 interface AttendanceViewProps {
   user: User;
   records: AttendanceRecord[];
+  tasks: Task[];
   onAddRecord: (r: AttendanceRecord) => void;
 }
 
@@ -16,9 +17,11 @@ const isSameDay = (isoA: string, isoB: string) => {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 };
 
-export const AttendanceView: React.FC<AttendanceViewProps> = ({ user, records, onAddRecord }) => {
+export const AttendanceView: React.FC<AttendanceViewProps> = ({ user, records, tasks, onAddRecord }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState('');
+
+  const myTasks = useMemo(() => tasks.filter(t => t.employeeIds.includes(user.id)), [tasks, user.id]);
 
   const myRecords = useMemo(
     () => records.filter(r => r.userId === user.id).sort((a, b) => b.timestamp.localeCompare(a.timestamp)),
@@ -38,9 +41,26 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ user, records, o
     setError('');
     setIsProcessing(true);
     try {
+      // Location is checked first: if the employee is tied to a task/site, we must
+      // confirm they're within its allowed radius *before* asking for a fingerprint.
+      const location = await getCurrentLocation();
+
+      let matchedTaskId: string | undefined;
+      if (myTasks.length > 0) {
+        const withinTask = myTasks.find(t => isWithinTaskRadius(location, t.location));
+        if (!withinTask) {
+          const nearest = myTasks.reduce<{ task: Task; distance: number } | null>((closest, t) => {
+            const d = distanceInMeters(location, t.location);
+            return !closest || d < closest.distance ? { task: t, distance: d } : closest;
+          }, null);
+          const distanceText = nearest ? ` (تبعد حوالي ${Math.round(nearest.distance)} متر عن "${nearest.task.name}")` : '';
+          throw new LocationError(`أنت خارج نطاق موقع العمل المسموح به${distanceText}`);
+        }
+        matchedTaskId = withinTask.id;
+      }
+
       const reason = nextAction === 'check-in' ? 'تأكيد تسجيل الحضور' : 'تأكيد تسجيل الانصراف';
       await verifyBiometric(reason);
-      const location = await getCurrentLocation();
 
       onAddRecord({
         id: crypto.randomUUID(),
@@ -49,12 +69,13 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ user, records, o
         timestamp: new Date().toISOString(),
         location,
         verifiedByBiometric: true,
+        taskId: matchedTaskId,
       });
     } catch (err) {
       if (err instanceof BiometricError || err instanceof LocationError) {
         setError(err.message);
       } else {
-        setError('حدث خطأ غير متوقع، حاول مرة أخرى');
+        setError(`حدث خطأ غير متوقع${err instanceof Error && err.message ? `: ${err.message}` : ''}`);
       }
     } finally {
       setIsProcessing(false);
@@ -66,6 +87,11 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ user, records, o
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-gray-800">تسجيل الحضور</h2>
         <p className="text-sm text-gray-500 mt-1">أهلاً {user.name}</p>
+        {myTasks.length > 0 && (
+          <p className="text-xs text-teal-700 bg-teal-50 border border-teal-100 rounded-lg px-3 py-1.5 mt-2 inline-block">
+            مكلّف بـ: {myTasks.map(t => t.name).join('، ')} — لن يعمل تسجيل الحضور إلا داخل نطاق الموقع
+          </p>
+        )}
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 text-center mb-6">

@@ -1,11 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
-import { AttendanceRecord, User, ViewState } from './types';
+import { AttendanceRecord, Task, User, ViewState } from './types';
 import { AttendanceView } from './components/AttendanceView';
 import { UsersView } from './components/UsersView';
+import { TasksView } from './components/TasksView';
 import { LoginView } from './components/LoginView';
 import { ReportsView } from './components/ReportsView';
-import { Fingerprint, ShieldCheck, LogOut, FileBarChart } from 'lucide-react';
+import { Fingerprint, ShieldCheck, LogOut, FileBarChart, Briefcase } from 'lucide-react';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -28,15 +29,22 @@ export default function App() {
     const saved = localStorage.getItem('app_records');
     return saved ? JSON.parse(saved) : [];
   });
+  const [tasks, setTasks] = useState<Task[]>(() => {
+    const saved = localStorage.getItem('app_tasks');
+    return saved ? JSON.parse(saved) : [];
+  });
 
   // Persistence
   useEffect(() => { localStorage.setItem('app_users', JSON.stringify(users)); }, [users]);
   useEffect(() => { localStorage.setItem('app_records', JSON.stringify(records)); }, [records]);
+  useEffect(() => { localStorage.setItem('app_tasks', JSON.stringify(tasks)); }, [tasks]);
 
   // Actions
   const addUser = (u: User) => setUsers([...users, u]);
   const deleteUser = (id: string) => setUsers(users.filter(u => u.id !== id));
   const addRecord = (r: AttendanceRecord) => setRecords([...records, r]);
+  const addTask = (t: Task) => setTasks([...tasks, t]);
+  const deleteTask = (id: string) => setTasks(tasks.filter(t => t.id !== id));
 
   const handleLogout = () => {
     setCurrentUser(null);
@@ -73,10 +81,13 @@ export default function App() {
       {/* Main Content Area */}
       <main className="max-w-md mx-auto min-h-[calc(100vh-8rem)]">
         {view === 'attendance' && (
-          <AttendanceView user={currentUser} records={records} onAddRecord={addRecord} />
+          <AttendanceView user={currentUser} records={records} tasks={tasks} onAddRecord={addRecord} />
         )}
         {view === 'reports' && canSeeReports && (
-          <ReportsView users={users} records={records} />
+          <ReportsView users={users} records={records} tasks={tasks} />
+        )}
+        {view === 'tasks' && isAdmin && (
+          <TasksView tasks={tasks} users={users} onAddTask={addTask} onDeleteTask={deleteTask} />
         )}
         {view === 'users' && isAdmin && (
           <UsersView
@@ -90,7 +101,7 @@ export default function App() {
 
       {/* Bottom Navigation */}
       <nav className="fixed bottom-0 w-full bg-white border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-50">
-        <div className={`max-w-md mx-auto flex items-center h-16 ${isAdmin ? 'justify-between px-6' : canSeeReports ? 'justify-around' : 'justify-center'}`}>
+        <div className="max-w-md mx-auto flex items-center h-16 justify-around px-2">
           <button
             onClick={() => setView('attendance')}
             className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${view === 'attendance' ? 'text-primary font-bold' : 'text-gray-400 hover:text-gray-600'}`}
@@ -106,6 +117,16 @@ export default function App() {
             >
               <FileBarChart size={view === 'reports' ? 24 : 22} strokeWidth={view === 'reports' ? 2.5 : 2} />
               <span className="text-[10px]">التقارير</span>
+            </button>
+          )}
+
+          {isAdmin && (
+            <button
+              onClick={() => setView('tasks')}
+              className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${view === 'tasks' ? 'text-primary font-bold' : 'text-gray-400 hover:text-gray-600'}`}
+            >
+              <Briefcase size={view === 'tasks' ? 24 : 22} strokeWidth={view === 'tasks' ? 2.5 : 2} />
+              <span className="text-[10px]">المهام</span>
             </button>
           )}
 

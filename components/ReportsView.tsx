@@ -1,18 +1,20 @@
 import React, { useMemo, useState } from 'react';
-import { AttendanceRecord, User } from '../types';
+import { AttendanceRecord, Task, User } from '../types';
 import { formatLocation, mapsLinkFor } from '../services/locationService';
-import { FileBarChart, LogIn, LogOut, Navigation, MapPin, CheckCircle2 } from 'lucide-react';
+import { FileBarChart, LogIn, LogOut, Navigation, MapPin, CheckCircle2, Briefcase } from 'lucide-react';
 
 interface ReportsViewProps {
   users: User[];
   records: AttendanceRecord[];
+  tasks: Task[];
 }
 
-export const ReportsView: React.FC<ReportsViewProps> = ({ users, records }) => {
+export const ReportsView: React.FC<ReportsViewProps> = ({ users, records, tasks }) => {
   const [userFilter, setUserFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<string>('');
 
   const userMap = useMemo(() => new Map(users.map(u => [u.id, u])), [users]);
+  const taskMap = useMemo(() => new Map(tasks.map(t => [t.id, t])), [tasks]);
 
   const filtered = useMemo(() => {
     return records
@@ -62,6 +64,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ users, records }) => {
         ) : (
           filtered.map(record => {
             const person = userMap.get(record.userId);
+            const task = record.taskId ? taskMap.get(record.taskId) : undefined;
             const link = mapsLinkFor(record.location);
             return (
               <div key={record.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
@@ -88,6 +91,11 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ users, records }) => {
                     </div>
                   </div>
                 </div>
+                {task && (
+                  <div className="flex items-center gap-1 text-xs text-teal-700 bg-teal-50 rounded px-2 py-1 mt-2 w-fit">
+                    <Briefcase size={11} /> {task.name}
+                  </div>
+                )}
                 <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50">
                   <span className="flex items-center gap-1 text-xs text-gray-500">
                     <CheckCircle2 size={12} className="text-green-500" /> بصمة مؤكدة

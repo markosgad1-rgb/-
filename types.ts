@@ -1,45 +1,47 @@
 
-export interface Project {
-  id: string;
-  name: string;
-  number: string;
-  address?: string;
-  locationUrl?: string;
-}
-
-export interface Employee {
-  id: string;
-  name: string;
-  jobTitle?: string;
-  accountNumber: string;
-  mobileNumber: string;
-  address: string;
-  projectId?: string; // Optional link to a project
-}
-
-export interface Report {
-  id: string;
-  projectId: string;
-  fileName: string;
-  fileType: 'excel' | 'word' | 'pdf' | 'image' | 'other';
-  date: string;
-  notes?: string;
-  size?: string;
-}
-
-export interface GeneratedData {
-  projects?: Project[];
-  employees?: Employee[];
-}
-
-export type UserRole = 'admin' | 'user';
+export type UserRole = 'admin' | 'manager' | 'employee';
 
 export interface User {
   id: string;
   username: string;
-  password: string; // In a real app, this should be hashed
-  role: UserRole;
+  password: string; // In a real app, this should be hashed and stored server-side
   name: string;
+  role: UserRole;
+  jobTitle?: string;
+  mobileNumber?: string;
+  biometricEnabled?: boolean;
 }
 
-export type ViewState = 'projects' | 'employees' | 'users' | 'project-reports';
+export type AttendanceType = 'check-in' | 'check-out';
+
+export interface AttendanceLocation {
+  latitude: number;
+  longitude: number;
+  accuracy?: number;
+}
+
+export interface AttendanceRecord {
+  id: string;
+  userId: string;
+  type: AttendanceType;
+  timestamp: string; // ISO string
+  location: AttendanceLocation | null;
+  verifiedByBiometric: boolean;
+  note?: string;
+  taskId?: string;
+}
+
+export interface TaskLocation {
+  latitude: number;
+  longitude: number;
+  radiusMeters: number;
+}
+
+export interface Task {
+  id: string;
+  name: string;
+  employeeIds: string[];
+  location: TaskLocation;
+}
+
+export type ViewState = 'attendance' | 'users' | 'reports' | 'tasks' | 'profile';

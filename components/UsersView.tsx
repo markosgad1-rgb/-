@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { User } from '../types';
-import { Plus, Trash2, Shield, User as UserIcon, Key } from 'lucide-react';
+import { User, UserRole } from '../types';
+import { Plus, Trash2, Shield, UserCog, User as UserIcon } from 'lucide-react';
 
 interface UsersViewProps {
   users: User[];
@@ -9,9 +9,31 @@ interface UsersViewProps {
   onDeleteUser: (id: string) => void;
 }
 
+const ROLE_LABEL: Record<UserRole, string> = {
+  admin: 'مدير عام',
+  manager: 'مدير',
+  employee: 'موظف',
+};
+
+const roleIcon = (role: UserRole) => {
+  switch (role) {
+    case 'admin': return <Shield size={20} />;
+    case 'manager': return <UserCog size={20} />;
+    default: return <UserIcon size={20} />;
+  }
+};
+
+const roleColor = (role: UserRole) => {
+  switch (role) {
+    case 'admin': return 'bg-amber-100 text-amber-600';
+    case 'manager': return 'bg-blue-100 text-blue-600';
+    default: return 'bg-gray-100 text-gray-600';
+  }
+};
+
 export const UsersView: React.FC<UsersViewProps> = ({ users, currentUserId, onAddUser, onDeleteUser }) => {
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [formData, setFormData] = useState<Partial<User>>({ role: 'user' });
+  const [formData, setFormData] = useState<Partial<User>>({ role: 'employee' });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -26,9 +48,11 @@ export const UsersView: React.FC<UsersViewProps> = ({ users, currentUserId, onAd
       name: formData.name!,
       username: formData.username!,
       password: formData.password!,
-      role: (formData.role as 'admin' | 'user') || 'user',
+      role: (formData.role as UserRole) || 'employee',
+      jobTitle: formData.jobTitle || '',
+      mobileNumber: formData.mobileNumber || '',
     });
-    setFormData({ role: 'user' });
+    setFormData({ role: 'employee' });
     setIsFormOpen(false);
   };
 
@@ -36,7 +60,7 @@ export const UsersView: React.FC<UsersViewProps> = ({ users, currentUserId, onAd
     <div className="pb-20 pt-4 px-4">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-gray-800">إدارة المستخدمين</h2>
-        <button 
+        <button
           onClick={() => setIsFormOpen(true)}
           className="bg-primary text-white p-2 rounded-full shadow-lg hover:bg-teal-800 transition-colors"
         >
@@ -46,7 +70,7 @@ export const UsersView: React.FC<UsersViewProps> = ({ users, currentUserId, onAd
 
       {isFormOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl animate-in fade-in zoom-in duration-200">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl overflow-y-auto max-h-[90vh] animate-in fade-in zoom-in duration-200">
             <h3 className="text-xl font-bold mb-4 text-primary">إضافة مستخدم جديد</h3>
             <form onSubmit={handleSubmit} className="space-y-3">
               <div>
@@ -58,6 +82,27 @@ export const UsersView: React.FC<UsersViewProps> = ({ users, currentUserId, onAd
                   className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-primary focus:outline-none"
                   placeholder="اسم الموظف"
                   required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 mb-1">المسمى الوظيفي</label>
+                <input
+                  name="jobTitle"
+                  value={formData.jobTitle || ''}
+                  onChange={handleInputChange}
+                  className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-primary focus:outline-none"
+                  placeholder="مثال: محاسب، مندوب مبيعات"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 mb-1">رقم الموبايل</label>
+                <input
+                  name="mobileNumber"
+                  type="tel"
+                  value={formData.mobileNumber || ''}
+                  onChange={handleInputChange}
+                  className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-primary focus:outline-none"
+                  placeholder="01xxxxxxxxx"
                 />
               </div>
               <div>
@@ -86,24 +131,25 @@ export const UsersView: React.FC<UsersViewProps> = ({ users, currentUserId, onAd
                 <label className="block text-xs font-bold text-gray-500 mb-1">الصلاحية</label>
                 <select
                   name="role"
-                  value={formData.role || 'user'}
+                  value={formData.role || 'employee'}
                   onChange={handleInputChange}
                   className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-primary focus:outline-none bg-white"
                 >
-                  <option value="user">مستخدم (عرض فقط)</option>
-                  <option value="admin">مدير (تحكم كامل)</option>
+                  <option value="employee">موظف (تسجيل حضور فقط)</option>
+                  <option value="manager">مدير (متابعة وتقارير)</option>
+                  <option value="admin">مدير عام (تحكم كامل)</option>
                 </select>
               </div>
-              
+
               <div className="flex gap-3 mt-6">
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={() => setIsFormOpen(false)}
                   className="flex-1 py-3 text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200"
                 >
                   إلغاء
                 </button>
-                <button 
+                <button
                   type="submit"
                   className="flex-1 py-3 text-white bg-primary rounded-xl hover:bg-teal-800"
                 >
@@ -119,21 +165,27 @@ export const UsersView: React.FC<UsersViewProps> = ({ users, currentUserId, onAd
         {users.map(user => (
           <div key={user.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-full ${user.role === 'admin' ? 'bg-amber-100 text-amber-600' : 'bg-gray-100 text-gray-600'}`}>
-                {user.role === 'admin' ? <Shield size={20} /> : <UserIcon size={20} />}
+              <div className={`p-2 rounded-full ${roleColor(user.role)}`}>
+                {roleIcon(user.role)}
               </div>
               <div>
                 <h3 className="font-bold text-gray-800">{user.name}</h3>
-                <div className="flex items-center text-xs text-gray-400 gap-2">
+                <div className="flex items-center text-xs text-gray-400 gap-2 flex-wrap">
                   <span className="bg-gray-50 px-1.5 rounded border border-gray-100">{user.username}</span>
                   <span>•</span>
-                  <span>{user.role === 'admin' ? 'مدير النظام' : 'مستخدم'}</span>
+                  <span>{ROLE_LABEL[user.role]}</span>
+                  {user.jobTitle && (
+                    <>
+                      <span>•</span>
+                      <span>{user.jobTitle}</span>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
-            
+
             {user.id !== currentUserId && (
-              <button 
+              <button
                 onClick={() => onDeleteUser(user.id)}
                 className="text-red-400 p-2 hover:bg-red-50 rounded-full"
               >

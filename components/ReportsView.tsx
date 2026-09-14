@@ -1,169 +1,117 @@
-
-import React, { useState, useRef } from 'react';
-import { Report, Project } from '../types';
-import { FileText, Table, File, Image, Trash2, Upload, ArrowRight, Paperclip, Calendar } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { AttendanceRecord, Task, User } from '../types';
+import { formatLocation, mapsLinkFor } from '../services/locationService';
+import { FileBarChart, LogIn, LogOut, Navigation, MapPin, CheckCircle2, Briefcase } from 'lucide-react';
 
 interface ReportsViewProps {
-  project: Project;
-  reports: Report[];
-  isAdmin: boolean;
-  onAddReport: (report: Report) => void;
-  onDeleteReport: (id: string) => void;
-  onBack: () => void;
+  users: User[];
+  records: AttendanceRecord[];
+  tasks: Task[];
 }
 
-export const ReportsView: React.FC<ReportsViewProps> = ({ project, reports, isAdmin, onAddReport, onDeleteReport, onBack }) => {
-  const [isUploading, setIsUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [note, setNote] = useState('');
+export const ReportsView: React.FC<ReportsViewProps> = ({ users, records, tasks }) => {
+  const [userFilter, setUserFilter] = useState<string>('all');
+  const [dateFilter, setDateFilter] = useState<string>('');
 
-  const getFileIcon = (type: string) => {
-    switch (type) {
-      case 'excel': return <Table className="text-green-600" size={24} />;
-      case 'word': return <FileText className="text-blue-600" size={24} />;
-      case 'image': return <Image className="text-purple-600" size={24} />;
-      case 'pdf': return <FileText className="text-red-600" size={24} />;
-      default: return <File className="text-gray-500" size={24} />;
-    }
-  };
+  const userMap = useMemo(() => new Map(users.map(u => [u.id, u])), [users]);
+  const taskMap = useMemo(() => new Map(tasks.map(t => [t.id, t])), [tasks]);
 
-  const getFileType = (fileName: string): Report['fileType'] => {
-    const ext = fileName.split('.').pop()?.toLowerCase();
-    if (['xls', 'xlsx', 'csv'].includes(ext || '')) return 'excel';
-    if (['doc', 'docx'].includes(ext || '')) return 'word';
-    if (['pdf'].includes(ext || '')) return 'pdf';
-    if (['jpg', 'jpeg', 'png'].includes(ext || '')) return 'image';
-    return 'other';
-  };
-
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const newReport: Report = {
-        id: crypto.randomUUID(),
-        projectId: project.id,
-        fileName: file.name,
-        fileType: getFileType(file.name),
-        date: new Date().toLocaleDateString('ar-EG'),
-        size: formatFileSize(file.size),
-        notes: note || 'تحديث حالة المشروع'
-      };
-      onAddReport(newReport);
-      setNote(''); // Reset note
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      setIsUploading(false);
-    }
-  };
+  const filtered = useMemo(() => {
+    return records
+      .filter(r => userFilter === 'all' || r.userId === userFilter)
+      .filter(r => !dateFilter || r.timestamp.slice(0, 10) === dateFilter)
+      .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+  }, [records, userFilter, dateFilter]);
 
   return (
-    <div className="pb-20 pt-4 px-4 min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <button 
-          onClick={onBack}
-          className="p-2 bg-white rounded-full shadow-sm text-gray-600 hover:text-primary transition-colors"
-        >
-          <ArrowRight size={20} />
-        </button>
+    <div className="pb-20 pt-4 px-4">
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-gray-800">تقارير الحضور والانصراف</h2>
+        <p className="text-sm text-gray-500 mt-1">{filtered.length} حركة</p>
+      </div>
+
+      <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-5 space-y-3">
         <div>
-          <h2 className="text-xl font-bold text-gray-800">تقارير وملفات</h2>
-          <p className="text-xs text-gray-500">{project.name} ({project.number})</p>
+          <label className="block text-xs font-bold text-gray-500 mb-1">الموظف</label>
+          <select
+            value={userFilter}
+            onChange={(e) => setUserFilter(e.target.value)}
+            className="w-full border border-gray-300 rounded-lg p-2.5 bg-white focus:ring-2 focus:ring-primary focus:outline-none"
+          >
+            <option value="all">كل الموظفين</option>
+            {users.map(u => (
+              <option key={u.id} value={u.id}>{u.name}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-bold text-gray-500 mb-1">التاريخ</label>
+          <input
+            type="date"
+            value={dateFilter}
+            onChange={(e) => setDateFilter(e.target.value)}
+            className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-primary focus:outline-none"
+          />
         </div>
       </div>
 
-      {/* Upload Area */}
-      {isAdmin && (
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-dashed border-primary mb-6">
-           {!isUploading ? (
-             <button 
-               onClick={() => setIsUploading(true)}
-               className="w-full py-4 flex flex-col items-center justify-center text-primary hover:bg-teal-50 rounded-lg transition-colors gap-2"
-             >
-               <div className="bg-teal-100 p-3 rounded-full">
-                 <Upload size={24} />
-               </div>
-               <span className="font-bold text-sm">إرفاق ملف جديد (Excel, Word, PDF)</span>
-             </button>
-           ) : (
-             <div className="space-y-3 animate-in fade-in zoom-in duration-200">
-               <label className="block text-xs font-bold text-gray-500">ملاحظات على الملف (اختياري)</label>
-               <input 
-                 type="text" 
-                 value={note}
-                 onChange={(e) => setNote(e.target.value)}
-                 placeholder="مثال: محضر تركيبات شهر يناير"
-                 className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
-               />
-               <div className="flex gap-2">
-                 <button 
-                   onClick={() => fileInputRef.current?.click()}
-                   className="flex-1 bg-primary text-white py-2 rounded-lg text-sm font-bold hover:bg-teal-800 flex items-center justify-center gap-2"
-                 >
-                   <Paperclip size={16} />
-                   اختر الملف
-                 </button>
-                 <button 
-                   onClick={() => setIsUploading(false)}
-                   className="px-4 bg-gray-100 text-gray-600 rounded-lg text-sm font-bold hover:bg-gray-200"
-                 >
-                   إلغاء
-                 </button>
-               </div>
-               <input 
-                 type="file" 
-                 ref={fileInputRef} 
-                 className="hidden" 
-                 onChange={handleFileSelect}
-               />
-             </div>
-           )}
-        </div>
-      )}
-
-      {/* Files List */}
       <div className="space-y-3">
-        {reports.length === 0 ? (
+        {filtered.length === 0 ? (
           <div className="text-center py-12 text-gray-400">
-            <FileText size={48} className="mx-auto mb-3 opacity-30" />
-            <p>لا توجد ملفات أو تقارير مرفقة لهذا المشروع</p>
+            <FileBarChart size={48} className="mx-auto mb-3 opacity-30" />
+            <p>لا توجد حركات مطابقة</p>
           </div>
         ) : (
-          reports.map(report => (
-            <div key={report.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-start gap-3">
-              <div className="mt-1 bg-gray-50 p-2 rounded-lg">
-                {getFileIcon(report.fileType)}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex justify-between items-start">
-                  <h3 className="font-bold text-gray-800 text-sm truncate" dir="ltr">{report.fileName}</h3>
-                  {isAdmin && (
-                    <button 
-                      onClick={() => onDeleteReport(report.id)}
-                      className="text-gray-300 hover:text-red-500 transition-colors p-1"
+          filtered.map(record => {
+            const person = userMap.get(record.userId);
+            const task = record.taskId ? taskMap.get(record.taskId) : undefined;
+            const link = mapsLinkFor(record.location);
+            return (
+              <div key={record.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`p-2 rounded-full ${
+                        record.type === 'check-in' ? 'bg-teal-50 text-primary' : 'bg-amber-50 text-amber-600'
+                      }`}
                     >
-                      <Trash2 size={16} />
-                    </button>
+                      {record.type === 'check-in' ? <LogIn size={16} /> : <LogOut size={16} />}
+                    </div>
+                    <div>
+                      <div className="font-bold text-gray-800 text-sm">{person?.name || 'مستخدم محذوف'}</div>
+                      <div className="text-xs text-gray-400">{record.type === 'check-in' ? 'حضور' : 'انصراف'}</div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xs text-gray-500 font-mono">
+                      {new Date(record.timestamp).toLocaleDateString('ar-EG')}
+                    </div>
+                    <div className="text-xs text-gray-400 font-mono">
+                      {new Date(record.timestamp).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  </div>
+                </div>
+                {task && (
+                  <div className="flex items-center gap-1 text-xs text-teal-700 bg-teal-50 rounded px-2 py-1 mt-2 w-fit">
+                    <Briefcase size={11} /> {task.name}
+                  </div>
+                )}
+                <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50">
+                  <span className="flex items-center gap-1 text-xs text-gray-500">
+                    <CheckCircle2 size={12} className="text-green-500" /> بصمة مؤكدة
+                  </span>
+                  <span className="flex items-center gap-1 text-xs text-gray-500" dir="ltr">
+                    <MapPin size={12} /> {formatLocation(record.location)}
+                  </span>
+                  {link && (
+                    <a href={link} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs text-blue-600">
+                      <Navigation size={11} /> الخريطة
+                    </a>
                   )}
                 </div>
-                <p className="text-xs text-gray-500 mt-1">{report.notes}</p>
-                <div className="flex items-center gap-4 mt-2 text-[10px] text-gray-400">
-                  <span className="flex items-center gap-1">
-                    <Calendar size={10} />
-                    {report.date}
-                  </span>
-                  {report.size && <span>{report.size}</span>}
-                </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>

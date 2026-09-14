@@ -31,7 +31,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ users, onLogin }) => {
             <Lock size={40} />
           </div>
           <h1 className="text-2xl font-bold text-gray-800">تسجيل الدخول</h1>
-          <p className="text-gray-500 text-sm mt-1">مدير المشروعات</p>
+          <p className="text-gray-500 text-sm mt-1">نظام الحضور والانصراف</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -81,7 +81,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ users, onLogin }) => {
         </form>
         
         <div className="mt-6 text-center text-xs text-gray-400">
-          نسخة تجريبية v1.1
+          نسخة تجريبية v1.0
         </div>
       </div>
     </div>
